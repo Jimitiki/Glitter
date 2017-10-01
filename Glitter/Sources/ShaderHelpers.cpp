@@ -7,10 +7,12 @@
 
 static bool ReadFile(const char* filename, std::string& stringOut)
 {
-	std::ifstream file;
-	file.open(filename);
-	if (!file.good())
+	std::ifstream file(filename);
+	if (!file)
 	{
+		if (!file.is_open()) {
+			std::cout << "Couldn't open file " << filename << " for reading." << std::endl;
+		}
 		return false;
 	}
 
@@ -65,13 +67,13 @@ GLuint LoadProgram(const char* vertexShaderFile, const char* fragmentShaderFile)
 	std::string vertStrOut, fragStrOut;
 	if (!ReadFile(vertexShaderFile, vertStrOut))
 	{
-		std::cout << "Couldn't read vertex shader file: " << vertexShaderFile << std::endl;
+		std::cout << "Error reading vertex shader file: " << vertexShaderFile << std::endl;
 		return 0;
 	}
 
 	if (!ReadFile(fragmentShaderFile, fragStrOut))
 	{
-		std::cout << "Couldn't read fragment shader file: " << fragmentShaderFile << std::endl;
+		std::cout << "Error reading fragment shader file: " << fragmentShaderFile << std::endl;
 		return 0;
 	}
 	

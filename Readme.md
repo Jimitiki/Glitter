@@ -47,12 +47,26 @@ OpenGL Mathematics      | [glm](https://github.com/g-truc/glm)
 Texture Loading         | [stb](https://github.com/nothings/stb)
 
 **Added for BYU CS455**
-
+### ShaderLoading
 In addition to the libraries included in the original Glitter repository we have provided a file to help with the tedious process of loading and compiling GLSL shaders. ShaderHelpers.h and ShaderHelpers.cpp are included in the project by default. To load your shaders call LoadProgram.
 
 ```GLuint myShader = LoadProgram("path/to/vertex/shader", "path/to/fragment/shader");```
 
 This will attempt to load and compile the provided vertex and fragment shaders and output any errors to the console. It returns the ID used by OpenGL to identify the shader on success and 0 on failure. Feel free to modify these files or ignore them if they don't meet your needs, they are simply provided for your convenience. 
+
+### Loading 3D Models
+We have also provided a simple 3D model loader which uses the assimp library included in Glitter to load models 
+from a variety of file formats. To use it call
+```
+mlModel model;
+bool success = LoadModel("path/to/model/directory", "modelName.fileExtension", model);
+```
+This function will attempt to load the model contained in "path/to/model/directory/modelName.fileExtension" 
+and returns true on success. On failure it will return false and print errors to the console.
+
+Since a model can contain submeshes that each have a different material/texture, mlModel is simply a list of mlMesh structs.
+Each mlMesh contains the vertex information for a single submesh and the path of the mesh's texture if it has one. For more
+information about what each mlMesh contains look at MeshLoader.h and MeshLoader.cpp.
 
 ## License
 >The MIT License (MIT)

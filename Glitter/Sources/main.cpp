@@ -1,6 +1,8 @@
 // Local Headers
+#define STB_IMAGE_IMPLEMENTATION
 #include "glitter.hpp"
 #include "ShaderHelpers.h"
+#include "ModelLoader.h"
 
 // System Headers
 #include <glad/glad.h>
