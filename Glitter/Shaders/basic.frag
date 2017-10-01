@@ -1,7 +1,12 @@
 #version 330 core
-out vec4 ColorOut;
+in vec4 position;
+in vec4 color;
+
+uniform mat4 colorMask;
+
+out vec4 fColor;
 
 void main()
 {
-    ColorOut = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    fColor = colorMask * color;
 }
