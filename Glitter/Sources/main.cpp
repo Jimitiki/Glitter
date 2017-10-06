@@ -13,10 +13,9 @@
 #include <cstdio>
 #include <cstdlib>
 
-glm::mat4 matrixTransform(
-	glm::vec3 const& translate,
-	glm::vec3 const& scale
-);
+glm::mat4 matrixTransform(glm::vec3 const& translate, glm::vec3 const& scale);
+void initializeVAO(GLuint vao, GLuint vbo, GLuint ebo, float *positions, float *uvs, unsigned int *indices);
+void initializeTexture(GLuint texture, unsigned char *loadedTexture, int width, int height);
 
 
 int main(int argc, char * argv[])
@@ -45,12 +44,19 @@ int main(int argc, char * argv[])
 	gladLoadGL();
 	fprintf(stderr, "OpenGL %s\n", glGetString(GL_VERSION));
 
-	GLuint vao;
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
+	mlModel crayonModel, boxModel;
+	if (!LoadModel("D:/Users/Chris/Documents/CS455/Lab4/", "crayon.obj", crayonModel) ||
+		!LoadModel("D:/Users/Chris/Documents/CS455/Lab4/", "crayonBox.obj", boxModel))
+	{
+		return -1;
+	}
+	mlMesh crayonMesh = crayonModel.meshes.at(0);
+	mlMesh boxMesh = boxModel.meshes.at(0);
 
-	mlModel crayonModel;
-	if (!LoadModel("D:/Users/Chris/Documents/CS455/Lab4/", "crayon.obj", crayonModel))
+	int crayonTextureWidth, crayonTextureHeight, crayonChannelCount, boxTextureWidth, boxTextureHeight, boxChannelCount;
+	unsigned char *crayonTexture = stbi_load(crayonMesh.textureFile.c_str(), &crayonTextureWidth, &crayonTextureHeight, &crayonChannelCount, 3);
+	unsigned char *boxTexture = stbi_load(boxMesh.textureFile.c_str(), &boxTextureWidth, &boxTextureHeight, &boxChannelCount, 3);
+	if (!crayonTexture || !boxTexture)
 	{
 		return -1;
 	}
@@ -58,53 +64,123 @@ int main(int argc, char * argv[])
 	GLuint shader = LoadProgram("D:/Users/Chris/Documents/Visual Studio 2017/Projects/Glitter/Glitter/Shaders/basic.vert",
 		"D:/Users/Chris/Documents/Visual Studio 2017/Projects/Glitter/Glitter/Shaders/basic.frag");
 
-	mlMesh crayonMesh = crayonModel.meshes[0];
-
-	GLuint vbo;
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-	float positions[1584 * 3];
+	/////////RETRIEVE CRAYON OBJECT DATA//////////
+	float crayonPositions[1584 * 3];
+	float crayonUVs[1584 * 2];
+	unsigned int crayonIndices[2376];
 	for (int i = 0; i < crayonMesh.vertices.size(); i++)
 	{
 		int pIndex = i * 3;
-		positions[pIndex] = crayonModel.meshes[0].vertices[i].position.x;
-		positions[pIndex + 1] = crayonModel.meshes[0].vertices[i].position.y;
-		positions[pIndex + 2] = crayonModel.meshes[0].vertices[i].position.z;
+		crayonPositions[pIndex] = crayonMesh.vertices.at(i).position.x;
+		crayonPositions[pIndex + 1] = crayonMesh.vertices.at(i).position.y;
+		crayonPositions[pIndex + 2] = crayonMesh.vertices.at(i).position.z;
 	}
-
-	float UVs[1584 * 2];
 	for (int i = 0; i < crayonMesh.vertices.size(); i++)
 	{
 		int uIndex = i * 2;
-		UVs[uIndex] = crayonMesh.vertices[i].UV.x;
-		UVs[uIndex + 1] = crayonMesh.vertices[i].UV.y;
+		crayonUVs[uIndex] = crayonMesh.vertices.at(i).UV.x;
+		crayonUVs[uIndex + 1] = crayonMesh.vertices.at(i).UV.y;
+	}
+	for (int i = 0; i < crayonMesh.indices.size(); i++)
+	{
+		crayonIndices[i] = crayonMesh.indices.at(i);
 	}
 
-	//glBufferData(GL_ARRAY_BUFFER, sizeof(crayonMesh.vertices), (GLvoid *) crayonMesh.vertices.data(), GL_STATIC_DRAW);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(positions) + sizeof(UVs), nullptr, GL_STATIC_DRAW);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(positions), positions);
-	glBufferSubData(GL_ARRAY_BUFFER, sizeof(positions), sizeof(UVs), UVs);
+	/*////////RETRIEVE CRAYON BOX OBJECT DATA/////////
+	float boxPositions[56 * 3];
+	float boxUVs[56 * 2];
+	unsigned int boxIndices[84];
+	for (int i = 0; i < boxMesh.vertices.size(); i++)
+	{
+		int pIndex = i * 3;
+		boxPositions[pIndex] = boxMesh.vertices.at(i).position.x;
+		boxPositions[pIndex + 1] = boxMesh.vertices.at(i).position.y;
+		boxPositions[pIndex + 2] = boxMesh.vertices.at(i).position.z;
+	}
+	for (int i = 0; i < boxMesh.vertices.size(); i++)
+	{
+		int uIndex = i * 2;
+		boxUVs[uIndex] = boxMesh.vertices.at(i).UV.x;
+		boxUVs[uIndex + 1] = boxMesh.vertices.at(i).UV.y;
+	}
+	for (int i = 0; i < boxMesh.indices.size(); i++)
+	{
+		boxIndices[i] = boxMesh.indices.at(i);
+	}*/
+
+	GLuint VAOs[2];
+	glGenVertexArrays(1, VAOs);
+	GLuint VBOs[2];
+	glGenBuffers(2, VBOs);
+	GLuint EBOs[2];
+	glGenBuffers(2, EBOs);
+
+	///////////////INITIALIZE CRAYON VAO/////////////////
+	glBindVertexArray(VAOs[0]);
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBOs[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(crayonPositions) + sizeof(crayonUVs), nullptr, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(crayonPositions), crayonPositions);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof(crayonPositions), sizeof(crayonUVs), crayonUVs);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[0]);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(crayonIndices), crayonIndices, GL_STATIC_DRAW);
 
 
-	GLuint vPosition = glGetAttribLocation(shader, "vPosition");
-	glEnableVertexAttribArray(vPosition);
+	/*//////////////INITIALIZE CRAYON BOX VAO/////////////////
+	glBindVertexArray(VAOs[1]);
+
+	glBindBuffer(GL_ARRAY_BUFFER, VBOs[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(boxPositions) + sizeof(boxUVs), nullptr, GL_STATIC_DRAW);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(boxPositions), boxPositions);
+	glBufferSubData(GL_ARRAY_BUFFER, sizeof(boxPositions), sizeof(boxUVs), boxUVs);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[1]);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(boxIndices), boxIndices, GL_STATIC_DRAW);
+
 	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GL_FLOAT), (GLvoid *) (nullptr));
+	glVertexAttribPointer(vUV, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GL_FLOAT), (GLvoid *) sizeof(boxPositions));
 
-	GLuint vUV = glGetAttribLocation(shader, "vUV");
-	glEnableVertexAttribArray(vPosition);
-	glVertexAttribPointer(vUV, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GL_FLOAT), (GLvoid *) sizeof(positions));
+
+	*///////////INITIALIZE CRAYON TEXTURE/////////////////
+	GLuint textures[2];
+	glGenTextures(2, textures);
+
+	glBindTexture(GL_TEXTURE_2D, textures[0]);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, crayonTextureHeight, crayonTextureWidth, 0, GL_RGB, GL_UNSIGNED_BYTE, crayonTexture);
+
+	/*//////////INITIALIZE CRAYON BOX TEXTURE/////////////////
+	glBindTexture(GL_TEXTURE_2D, textures[1]);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, boxTextureWidth, boxTextureHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, boxTexture);*/
 
 	glm::mat4 p = glm::perspective(glm::radians(90.0f), (float) mWidth / (float) mHeight, 0.01f, 100.0f);
 	GLint perspectivePositionID = glGetUniformLocation(shader, "perspective");
 
-	glm::mat4 t = matrixTransform(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+	glm::mat4 crayonTransform = matrixTransform(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f));
 	GLint transformPositionID = glGetUniformLocation(shader, "transform");
+
+	GLuint vPosition = glGetAttribLocation(shader, "vPosition");
+	glEnableVertexAttribArray(vPosition);
+	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GL_FLOAT), (GLvoid *) (nullptr));
+	GLuint vUV = glGetAttribLocation(shader, "vUV");
+	glEnableVertexAttribArray(vUV);
+	glVertexAttribPointer(vUV, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GL_FLOAT), (GLvoid *) sizeof(crayonPositions));
 
 	//t = p * t;
 
-	glm::vec4 v1 = p * t * glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
-	glm::vec4 v2 = p * t * glm::vec4(-0.2f, -0.2f, -0.2f, 1.0f);
+	glEnable(GL_DEPTH_TEST);
 
 	// Rendering Loop
 	while (glfwWindowShouldClose(mWindow) == false)
@@ -113,12 +189,18 @@ int main(int argc, char * argv[])
 
 		// Background Fill Color
 		glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glUseProgram(shader);
 
-		glUniformMatrix4fv(transformPositionID, 1, GL_FALSE, &t[0][0]);
+		//glBindVertexArray(VAOs[0]);
+		//glBindTexture(GL_TEXTURE_2D, textures[0]);
+		glUniformMatrix4fv(transformPositionID, 1, GL_FALSE, &crayonTransform[0][0]);
 
-		glDrawArrays(GL_TRIANGLES, 0, 1584);
+		glDrawElements(GL_TRIANGLES, 2376, GL_UNSIGNED_INT, 0);
+
+		//glBindVertexArray(VAOs[1]);
+		//glBindTexture(GL_TEXTURE_2D, textures[1]);
+		//glDrawElements(GL_TRIANGLES, 84, GL_UNSIGNED_INT, 0);
 		
 
 		// Flip Buffers and Draw
