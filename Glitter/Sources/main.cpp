@@ -74,9 +74,16 @@ int main(int argc, char * argv[])
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(positions), positions);
 	glBufferSubData(GL_ARRAY_BUFFER, sizeof(positions), sizeof(colors), colors);
 
-
 	GLuint shader = LoadProgram("D:/Users/Chris/Documents/Visual Studio 2017/Projects/Glitter/Glitter/Shaders/basic.vert",
 		"D:/Users/Chris/Documents/Visual Studio 2017/Projects/Glitter/Glitter/Shaders/basic.frag");
+
+	GLuint vPosition = glGetAttribLocation(shader, "vPosition");
+	glEnableVertexAttribArray(vPosition);
+	glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GL_FLOAT), (GLvoid *) (nullptr));
+
+	GLuint vColor = glGetAttribLocation(shader, "vColor");
+	glEnableVertexAttribArray(vColor);
+	glVertexAttribPointer(vColor, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GL_FLOAT), (GLvoid *) (sizeof(positions)));
 
 	// Rendering Loop
 	while (glfwWindowShouldClose(mWindow) == false)
@@ -87,15 +94,6 @@ int main(int argc, char * argv[])
 		glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glUseProgram(shader);
-
-		glBindVertexArray(vao);
-		GLuint vPosition = glGetAttribLocation(shader, "vPosition");
-		glEnableVertexAttribArray(vPosition);
-		glVertexAttribPointer(vPosition, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GL_FLOAT), (GLvoid *) (nullptr));
-
-		GLuint vColor = glGetAttribLocation(shader, "vColor");
-		glEnableVertexAttribArray(vColor);
-		glVertexAttribPointer(vColor, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GL_FLOAT), (GLvoid *) (sizeof(positions)));
 
 		glm::mat4 t = matrixTransform(glm::vec3(0.3f, -0.3f, 0.0f), glm::vec3(0.9f, 0.9f, 0.0f));
 
