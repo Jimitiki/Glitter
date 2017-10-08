@@ -1,12 +1,12 @@
 #version 330 core
 in vec4 position;
-in vec4 color;
+in vec2 uv;
 
-uniform mat4 colorMask;
+uniform sampler2D objTexture;
 
 out vec4 fColor;
 
 void main()
 {
-    fColor = colorMask * color;
+    fColor = texture(objTexture, uv);
 }
