@@ -83,6 +83,10 @@ bool LoadModel(const std::string& directory, const std::string& modelFile, mlMod
 	}
 
 	ProcessNode(scene->mRootNode, scene, dir, modelOut);
+	if (modelOut.meshes.size() == 0) {
+		std::cout << "Model file contained no meshes." << std::endl;
+		return false;
+	}
 
 	return true;
 }
