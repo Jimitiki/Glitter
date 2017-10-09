@@ -48,8 +48,16 @@ int main(int argc, char * argv[])
 	{
 		return -1;
 	}
-	
-	mlMesh mesh = model.meshes.at(0);
+
+	mlMesh *curMesh;
+	int vertexCount = 0, indexCount = 0;
+
+	for (int i = 0; i < model.meshes.size(); i++)
+	{
+		curMesh = &model.meshes.at(i);
+		vertexCount += curMesh->vertices.size();
+		indexCount += curMesh->indices.size();
+	}
 
 	GLuint shader = LoadProgram("D:/Users/Chris/Documents/Visual Studio 2017/Projects/Glitter/Glitter/Shaders/basic.vert",
 		"D:/Users/Chris/Documents/Visual Studio 2017/Projects/Glitter/Glitter/Shaders/basic.frag");
@@ -62,12 +70,29 @@ int main(int argc, char * argv[])
 	GLuint vbo;
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(mlVertex) * mesh.vertices.size(), &mesh.vertices.at(0), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(mlVertex) * vertexCount, nullptr, GL_STATIC_DRAW);
+
+	int vertexCounter = 0;
+	for (int i = 0; i < model.meshes.size(); i++)
+	{
+		curMesh = &model.meshes.at(i);
+		glBufferSubData(GL_ARRAY_BUFFER, vertexCounter, sizeof(mlVertex) * curMesh->vertices.size(), &curMesh->vertices.at(0));
+		vertexCounter += curMesh->vertices.size();
+	}
+
 
 	GLuint ebo;
 	glGenBuffers(1, &ebo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * mesh.indices.size(), &mesh.indices.at(0), GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indexCount, nullptr, GL_STATIC_DRAW);
+
+	int indexCounter = 0;
+	for (int i = 0; i < model.meshes.size(); i++)
+	{
+		curMesh = &model.meshes.at(i);
+		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indexCounter, sizeof(unsigned int) * curMesh->indices.size(), &curMesh->indices.at(0));
+		indexCounter += curMesh->vertices.size();
+	}
 
 	//////////////VERTEX ATTRIB POINTERS///////////////
 	GLuint vPosition = glGetAttribLocation(shader, "vPosition");
@@ -112,7 +137,7 @@ int main(int argc, char * argv[])
 
 		glUniformMatrix4fv(transformPositionID, 1, GL_FALSE, &transformMatrix[0][0]);
 
-		glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
 
 		// Flip Buffers and Draw
 		glfwSwapBuffers(mWindow);
