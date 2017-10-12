@@ -14,6 +14,7 @@
 #include <cstdlib>
 
 glm::mat4 matrixTransform(glm::vec3 const& translate, glm::vec3 const& scale, glm::vec3 const& rotate);
+glm::mat4 rotateXYZ(glm::vec3 const& rotate);
 
 int main(int argc, char * argv[])
 {
@@ -41,18 +42,28 @@ int main(int argc, char * argv[])
 
 	glm::mat4 transformMatrix;
 	glm::mat4 modelMatrix;
-	glm::mat4 perspectiveMatrix = glm::perspective(glm::radians(60.0f), (float) mWidth / (float) mHeight, 0.01f, 100.0f);
+	glm::mat4 perspectiveMatrix = glm::perspective(glm::radians(50.0f), (float) mWidth / (float) mHeight, 0.01f, 100.0f);
+	modelMatrix = matrixTransform(glm::vec3(0.0f, 0.0f, -4.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
 
 	mlModel model;
 	if (!LoadModel("D:/Users/Chris/Documents/CS455/Lab5/", "mech.obj", model))
 	{
 		return -1;
 	}
-	
-	mlMesh mesh = model.meshes.at(0);
+
+	mlMesh *curMesh;
+	int vertexCount = 0, indexCount = 0;
+
+	for (int i = 0; i < model.meshes.size(); i++)
+	{
+		curMesh = &model.meshes.at(i);
+		vertexCount += curMesh->vertices.size();
+		indexCount += curMesh->indices.size();
+	}
 
 	GLuint shader = LoadProgram("D:/Users/Chris/Documents/Visual Studio 2017/Projects/Glitter/Glitter/Shaders/basic.vert",
 		"D:/Users/Chris/Documents/Visual Studio 2017/Projects/Glitter/Glitter/Shaders/basic.frag");
+	glUseProgram(shader);
 	
 	///////////////INITIALIZE VAO/////////////////
 	GLuint vao;
@@ -62,12 +73,29 @@ int main(int argc, char * argv[])
 	GLuint vbo;
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(mlVertex) * mesh.vertices.size(), &mesh.vertices.at(0), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(mlVertex) * vertexCount, nullptr, GL_STATIC_DRAW);
+
+	int vertexCounter = 0;
+	for (int i = 0; i < model.meshes.size(); i++)
+	{
+		curMesh = &model.meshes.at(i);
+		glBufferSubData(GL_ARRAY_BUFFER, vertexCounter, sizeof(mlVertex) * curMesh->vertices.size(), &curMesh->vertices.at(0));
+		vertexCounter += curMesh->vertices.size();
+	}
+
 
 	GLuint ebo;
 	glGenBuffers(1, &ebo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * mesh.indices.size(), &mesh.indices.at(0), GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indexCount, nullptr, GL_STATIC_DRAW);
+
+	int indexCounter = 0;
+	for (int i = 0; i < model.meshes.size(); i++)
+	{
+		curMesh = &model.meshes.at(i);
+		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indexCounter, sizeof(unsigned int) * curMesh->indices.size(), &curMesh->indices.at(0));
+		indexCounter += curMesh->indices.size();
+	}
 
 	//////////////VERTEX ATTRIB POINTERS///////////////
 	GLuint vPosition = glGetAttribLocation(shader, "vPosition");
@@ -82,14 +110,31 @@ int main(int argc, char * argv[])
 	glEnableVertexAttribArray(vUV);
 	glVertexAttribPointer(vUV, 2, GL_FLOAT, GL_FALSE, sizeof(mlVertex), (GLvoid *) (sizeof(float) * 6));
 
-	/////////////////OTHER INITIALIZATION///////////////////
-	GLint perspectivePositionID = glGetUniformLocation(shader, "perspective");
-	GLint transformPositionID = glGetUniformLocation(shader, "transform");
+	/////////////////UNIFORMS///////////////////
+	GLint uTransform = glGetUniformLocation(shader, "transform");
+	GLint uPerspective = glGetUniformLocation(shader, "perspective");
+	GLint uRotate = glGetUniformLocation(shader, "rotate");
+	GLint uPhongExponent = glGetUniformLocation(shader, "phongExponent");
+	GLint uDiffuseColor = glGetUniformLocation(shader, "diffuseColor");
+	GLint uSpecularColor = glGetUniformLocation(shader, "specularColor");
+	GLint uLightPosition = glGetUniformLocation(shader, "lightPosition");
+	GLint uLightDiffuseColor = glGetUniformLocation(shader, "lightDiffuseColor");
+	GLint uLightAmbientColor = glGetUniformLocation(shader, "lightAmbientColor");
+	GLint uCameraPosition = glGetUniformLocation(shader, "cameraPosition");
+
+	glUniformMatrix4fv(uPerspective, 1, GL_FALSE, &perspectiveMatrix[0][0]);
+	glUniform1i(uPhongExponent, 4);
+	glUniform3f(uSpecularColor, 0.8f, 0.9f, 0.95f);
+	glUniform3f(uDiffuseColor, 0.3f, 0.3f, 0.4f);
+	glUniform3f(uLightPosition, 4.0f, 4.0f, 2.0f);
+	glUniform3f(uLightDiffuseColor, 0.6f, 0.6f, 0.6f);
+	glUniform3f(uLightAmbientColor, 0.2f, 0.2f, 0.2f);
+	glUniform3f(uCameraPosition, 0.0f, 0.0f, 0.0f);
 
 	glEnable(GL_DEPTH_TEST);
 
-	float thetaX = 0.0f;
-	float thetaY = 0.0f;
+	float thetaX = 20.0f;
+	float thetaY = 19.0f;
 	float thetaZ = 0.0f;
 
 	// Rendering Loop
@@ -101,22 +146,22 @@ int main(int argc, char * argv[])
 		// Background Fill Color
 		glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glUseProgram(shader);
 
-		modelMatrix = matrixTransform(glm::vec3(0.0f, 0.0f, -3.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(thetaX, thetaY, thetaZ));
-		transformMatrix = perspectiveMatrix * modelMatrix;
+		modelMatrix = matrixTransform(glm::vec3(0.0f, -0.0f, -3.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(thetaX, thetaY, thetaZ));
 
-		thetaY -= 1.0f;
-		thetaX -= 0.3f;
-		thetaZ -= 0.04f;
+		glUniformMatrix4fv(uTransform, 1, GL_FALSE, &modelMatrix[0][0]);
+		glm::mat4 rotateMatrix = rotateXYZ(glm::vec3(thetaX, thetaY, thetaZ));
+		glUniformMatrix4fv(uRotate, 1, GL_FALSE, &rotateMatrix[0][0]);
 
-		glUniformMatrix4fv(transformPositionID, 1, GL_FALSE, &transformMatrix[0][0]);
-
-		glDrawElements(GL_TRIANGLES, mesh.indices.size(), GL_UNSIGNED_INT, 0);
-
+		glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
+		
 		// Flip Buffers and Draw
 		glfwSwapBuffers(mWindow);
 		glfwPollEvents();
+
+		//thetaY -= 0.6f;
+		//thetaX -= 0.5f;
+		//thetaZ -= 0.04f;
 	}
 	glfwTerminate();
 
@@ -127,8 +172,14 @@ glm::mat4 matrixTransform(glm::vec3 const& translate, glm::vec3 const& scale, gl
 {
 	glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), scale);
 	glm::mat4 translateMatrix = glm::translate(glm::mat4(1.0f), translate);
+	glm::mat4 rotateMatrix = rotateXYZ(rotate);
+	return translateMatrix * rotateMatrix * scaleMatrix;
+}
+
+glm::mat4 rotateXYZ(glm::vec3 const& rotate)
+{
 	glm::mat4 rotateMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(rotate.x), glm::vec3(1.0f, 0.0f, 0.0f));
 	rotateMatrix = glm::rotate(rotateMatrix, glm::radians(rotate.y), glm::vec3(0.0f, 1.0f, 0.0f));
 	rotateMatrix = glm::rotate(rotateMatrix, glm::radians(rotate.z), glm::vec3(0.0f, 0.0f, 1.0f));
-	return translateMatrix * rotateMatrix * scaleMatrix;
+	return rotateMatrix;
 }
